@@ -1,8 +1,11 @@
+use clap::Parser;
+use command::Command;
 use config::Config;
 use migration::Migration;
 use postgres::{Client, NoTls};
-use std::{env, io::Write, path::Path, time::SystemTime};
+use std::{io::Write, path::Path, time::SystemTime};
 
+mod command;
 mod config;
 mod migration;
 
@@ -18,10 +21,9 @@ static MIGRATION_TEMPLATE: &str = "-- up\n\n-- down\n";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv::dotenv().ok();
-    let args: Vec<String> = env::args().collect();
 
+    let command = Command::parse();
     let config = Config::from_env();
-
     let mut client = Client::connect(&connection_string(&config), NoTls)?;
     client.batch_execute(CREATE_MIGRATIONS_TABLE)?;
 
@@ -39,111 +41,90 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("{:?}", migrations);
     }
 
-    let usage = format!("Usage: {} <up|down|status|new|config>", args[0]);
-
-    match args.as_slice() {
-        [_, ref arg1] => match arg1.as_str() {
-            "up" => {
-                let mut any_mgrations_run = false;
-                for migration in &migrations {
-                    if !names.contains(&migration.identifier.as_str().to_owned()) {
-                        println!("applying {}", migration.identifier);
-                        let (up, _) = migration.up_down()?;
-                        if config.debug {
-                            println!("{}", up);
-                        }
-                        let mut transaction = client.transaction()?;
-                        transaction.batch_execute(&up)?;
-                        transaction.execute(
-                            "INSERT INTO migrations (name) VALUES ($1)",
-                            &[&migration.identifier],
-                        )?;
-                        transaction.commit()?;
-                        any_mgrations_run = true;
+    match command {
+        Command::Up => {
+            let mut any_mgrations_run = false;
+            for migration in &migrations {
+                if !names.contains(&migration.identifier.as_str().to_owned()) {
+                    println!("applying {}", migration.identifier);
+                    let (up, _) = migration.up_down()?;
+                    if config.debug {
+                        println!("{}", up);
                     }
-                }
-                if !any_mgrations_run {
-                    println!("database is up to date");
+                    let mut transaction = client.transaction()?;
+                    transaction.batch_execute(&up)?;
+                    transaction.execute(
+                        "INSERT INTO migrations (name) VALUES ($1)",
+                        &[&migration.identifier],
+                    )?;
+                    transaction.commit()?;
+                    any_mgrations_run = true;
                 }
             }
-            "down" => {
-                if names.is_empty() {
-                    println!("no migrations to revert");
-                    return Ok(());
-                }
-                let candidate = names.last().unwrap();
-                for migration in migrations.iter().rev() {
-                    if migration.identifier == *candidate {
-                        println!("reverting {}", migration.identifier);
-                        let (_, down) = migration.up_down()?;
-                        if config.debug {
-                            println!("{}", down);
-                        }
-                        let mut transaction = client.transaction()?;
-                        transaction.batch_execute(&down)?;
-                        transaction.execute(
-                            "DELETE FROM migrations WHERE name = $1",
-                            &[&migration.identifier],
-                        )?;
-                        transaction.commit()?;
-                        break;
+            if !any_mgrations_run {
+                println!("database is up to date");
+            }
+        }
+        Command::Down => {
+            if names.is_empty() {
+                println!("no migrations to revert");
+                return Ok(());
+            }
+            let candidate = names.last().unwrap();
+            for migration in migrations.iter().rev() {
+                if migration.identifier == *candidate {
+                    println!("reverting {}", migration.identifier);
+                    let (_, down) = migration.up_down()?;
+                    if config.debug {
+                        println!("{}", down);
                     }
+                    let mut transaction = client.transaction()?;
+                    transaction.batch_execute(&down)?;
+                    transaction.execute(
+                        "DELETE FROM migrations WHERE name = $1",
+                        &[&migration.identifier],
+                    )?;
+                    transaction.commit()?;
+                    break;
                 }
             }
-            "status" => {
-                let mut all_migrations = Vec::new();
-                let known_migrations = migrations
-                    .iter()
-                    .map(|m| m.identifier.clone())
-                    .collect::<Vec<String>>();
-                for migration in &known_migrations {
-                    all_migrations.push(migration.clone())
+        }
+        Command::Status => {
+            let mut all_migrations = Vec::new();
+            let known_migrations = migrations
+                .iter()
+                .map(|m| m.identifier.clone())
+                .collect::<Vec<String>>();
+            for migration in &known_migrations {
+                all_migrations.push(migration.clone())
+            }
+            for name in &names {
+                if !known_migrations.contains(name) {
+                    all_migrations.push(name.clone());
                 }
-                for name in &names {
-                    if !known_migrations.contains(name) {
-                        all_migrations.push(name.clone());
-                    }
-                }
-                all_migrations.sort();
-                for migration in all_migrations {
-                    if known_migrations.contains(&migration) {
-                        if names.contains(&migration) {
-                            println!("{} [applied]", migration);
-                        } else {
-                            println!("{} [pending]", migration);
-                        }
+            }
+            all_migrations.sort();
+            for migration in all_migrations {
+                if known_migrations.contains(&migration) {
+                    if names.contains(&migration) {
+                        println!("{} [applied]", migration);
                     } else {
-                        println!("{} ** NO FILE **", migration);
+                        println!("{} [pending]", migration);
                     }
+                } else {
+                    println!("{} ** NO FILE **", migration);
                 }
             }
-            "new" => {
-                println!("Usage: new [migration_name]");
-            }
-            "config" => {
-                println!("{:?}", config);
-            }
-            _ => {
-                println!("{}", usage);
-            }
-        },
-        [_, ref arg1, arg2] => match arg1.as_str() {
-            "new" => {
-                let timestamp = SystemTime::now()
-                    .duration_since(SystemTime::UNIX_EPOCH)
-                    .expect("time went backwards")
-                    .as_secs();
-                let filename = format!("{}/{}-{}.sql", config.migrate_dir, timestamp, arg2);
-                let mut file = std::fs::File::create(&filename)?;
-                file.write_all(MIGRATION_TEMPLATE.as_bytes())?;
-                println!("Created file {}", filename);
-            }
-            _ => {
-                println!("{}", usage);
-            }
-        },
-        _ => {
-            println!("{}", usage);
+        }
+        Command::New(new_args) => {
+            let timestamp = SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .expect("time went backwards")
+                .as_secs();
+            let filename = format!("{}/{}-{}.sql", config.migrate_dir, timestamp, new_args.name);
+            let mut file = std::fs::File::create(&filename)?;
+            file.write_all(MIGRATION_TEMPLATE.as_bytes())?;
+            println!("Created file {}", filename);
         }
     }
 
