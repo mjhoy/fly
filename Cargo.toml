@@ -2,6 +2,10 @@
 name = "fly-migrate"
 version = "0.1.0"
 edition = "2021"
+description = "A simple CLI database migration tool for postgresql."
+license = "MIT"
+repository = "https://github.com/mjhoy/fly"
+keywords = ["database", "migration"]
 
 [[bin]]
 name = "fly"
