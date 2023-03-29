@@ -1,47 +1,10 @@
 use config::Config;
+use migration::Migration;
 use postgres::{Client, NoTls};
-use std::{
-    env,
-    io::{Read, Write},
-    path::Path,
-    time::SystemTime,
-};
+use std::{env, io::Write, path::Path, time::SystemTime};
 
 mod config;
-
-#[derive(Debug)]
-struct Migration {
-    path: String,
-    identifier: String,
-}
-
-impl Migration {
-    fn up_down(&self) -> Result<(String, String), Box<dyn std::error::Error>> {
-        let mut file = std::fs::File::open(&self.path)?;
-        let mut contents = String::new();
-        file.read_to_string(&mut contents)?;
-        let mut statements = contents.split('\n');
-        let mut up = String::new();
-        let mut down = String::new();
-        for line in &mut statements {
-            if line == "-- up" {
-                break;
-            }
-        }
-        for line in &mut statements {
-            if line == "-- down" {
-                break;
-            }
-            up.push_str(line);
-            up.push('\n');
-        }
-        for line in &mut statements {
-            down.push_str(line);
-            down.push('\n');
-        }
-        Ok((up, down))
-    }
-}
+mod migration;
 
 static CREATE_MIGRATIONS_TABLE: &str = r#"
   CREATE TABLE IF NOT EXISTS migrations (
