@@ -1,7 +1,7 @@
 use clap::Parser;
 
 #[derive(Parser, Debug)]
-#[command(name = "fly", about = "fly: simple database migrations.")]
+#[command(name = "fly", about = "fly: simple postgresql database migrations.")]
 pub enum Command {
     /// Applies all pending migrations.
     Up,
