@@ -1,7 +1,18 @@
 fly
 ===
 
-A simple CLI database migration tool for postgresql.
+A simple CLI database migration tool for postgresql. Very much
+work-in-progress at the moment.
+
+## Installing
+
+Available on crates.io as [fly-migrate][fly-migrate]:
+
+```
+$ cargo install fly-migrate
+# installs `fly` to `~/.cargo/bin`:
+$ fly --help
+```
 
 ## Configuration
 
@@ -21,3 +32,5 @@ to look in a `.env` file.
 - `down`: Rolls back the last migration.
 - `status`: Prints the current status of the database.
 - `new`: Creates a new migration file.
+
+[fly-migrate]: https://crates.io/crates/fly-migrate
