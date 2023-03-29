@@ -1,21 +1,14 @@
 use clap::Parser;
 use command::Command;
 use config::Config;
+use db::Db;
 use migration::Migration;
-use postgres::{Client, NoTls};
 use std::{io::Write, path::Path, time::SystemTime};
 
 mod command;
 mod config;
+mod db;
 mod migration;
-
-static CREATE_MIGRATIONS_TABLE: &str = r#"
-  CREATE TABLE IF NOT EXISTS migrations (
-      id SERIAL PRIMARY KEY,
-      name TEXT NOT NULL UNIQUE,
-      created_at TIMESTAMP NOT NULL DEFAULT NOW()
-  );
-"#;
 
 static MIGRATION_TEMPLATE: &str = "-- up\n\n-- down\n";
 
@@ -24,11 +17,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let command = Command::parse();
     let config = Config::from_env();
-    let mut client = Client::connect(&connection_string(&config), NoTls)?;
-    client.batch_execute(CREATE_MIGRATIONS_TABLE)?;
+    let mut db = Db::connect(&config)?;
+    db.create_migrations_table()?;
 
-    let res = client.query("SELECT name FROM migrations", &[]).unwrap();
-    let names: Vec<String> = res.iter().map(|row| row.get(0)).collect();
+    let names = db.get_applied_migrations()?;
     if config.debug {
         println!("migrations in schema table:");
         println!("{:?}", names);
@@ -51,13 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     if config.debug {
                         println!("{}", up);
                     }
-                    let mut transaction = client.transaction()?;
-                    transaction.batch_execute(&up)?;
-                    transaction.execute(
-                        "INSERT INTO migrations (name) VALUES ($1)",
-                        &[&migration.identifier],
-                    )?;
-                    transaction.commit()?;
+                    db.apply_migration(&up, migration)?;
                     any_mgrations_run = true;
                 }
             }
@@ -78,13 +64,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     if config.debug {
                         println!("{}", down);
                     }
-                    let mut transaction = client.transaction()?;
-                    transaction.batch_execute(&down)?;
-                    transaction.execute(
-                        "DELETE FROM migrations WHERE name = $1",
-                        &[&migration.identifier],
-                    )?;
-                    transaction.commit()?;
+                    db.rollback_migration(&down, migration)?;
                     break;
                 }
             }
@@ -129,13 +109,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
-}
-
-fn connection_string(config: &Config) -> String {
-    format!(
-        "postgresql://{}@{}:{}/{}",
-        config.pg_user, config.pg_host, config.pg_port, config.pg_db
-    )
 }
 
 fn get_migrations(config: &Config) -> Result<Vec<Migration>, Box<dyn std::error::Error>> {
