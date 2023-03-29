@@ -4,6 +4,7 @@ use std::{collections::HashMap, env};
 pub struct Config {
     pub migrate_dir: String,
     pub pg_user: String,
+    pub pg_password: Option<String>,
     pub pg_host: String,
     pub pg_port: u16,
     pub pg_db: String,
@@ -19,6 +20,7 @@ impl Config {
                 .expect("MIGRATE_DIR not set")
                 .to_owned(),
             pg_user: env_vars.get("PG_USER").expect("PG_USER not set").to_owned(),
+            pg_password: env_vars.get("PG_PASSWORD").map(|s| s.to_owned()),
             pg_host: env_vars.get("PG_HOST").expect("PG_HOST not set").to_owned(),
             pg_port: env_vars
                 .get("PG_PORT")

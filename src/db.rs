@@ -66,8 +66,15 @@ impl Db {
 }
 
 fn connection_string(config: &Config) -> String {
-    format!(
-        "postgresql://{}@{}:{}/{}",
-        config.pg_user, config.pg_host, config.pg_port, config.pg_db
-    )
+    if let Some(password) = &config.pg_password {
+        return format!(
+            "postgresql://{}:{}@{}:{}/{}",
+            config.pg_user, password, config.pg_host, config.pg_port, config.pg_db
+        );
+    } else {
+        format!(
+            "postgresql://{}@{}:{}/{}",
+            config.pg_user, config.pg_host, config.pg_port, config.pg_db
+        )
+    }
 }
