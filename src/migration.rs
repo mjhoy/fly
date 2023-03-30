@@ -1,3 +1,4 @@
+use crate::error::Error;
 use std::io::Read;
 
 #[derive(Debug)]
@@ -7,7 +8,7 @@ pub struct Migration {
 }
 
 impl Migration {
-    pub fn up_down(&self) -> Result<(String, String), Box<dyn std::error::Error>> {
+    pub fn up_down(&self) -> Result<(String, String), Error> {
         let mut file = std::fs::File::open(&self.path)?;
         let mut contents = String::new();
         file.read_to_string(&mut contents)?;

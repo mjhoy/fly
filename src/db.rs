@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::error::Error;
 use crate::migration::Migration;
 use postgres::{Client, NoTls};
 
@@ -15,17 +16,17 @@ pub struct Db {
 }
 
 impl Db {
-    pub fn connect(config: &Config) -> Result<Db, Box<dyn std::error::Error>> {
+    pub fn connect(config: &Config) -> Result<Db, Error> {
         let client = Client::connect(&connection_string(config), NoTls)?;
         Ok(Db { client })
     }
 
-    pub fn create_migrations_table(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn create_migrations_table(&mut self) -> Result<(), Error> {
         self.client.batch_execute(CREATE_MIGRATIONS_TABLE)?;
         Ok(())
     }
 
-    pub fn get_applied_migrations(&mut self) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    pub fn get_applied_migrations(&mut self) -> Result<Vec<String>, Error> {
         let rows = self.client.query("SELECT name FROM migrations", &[])?;
         let mut migrations = Vec::new();
         for row in rows {
@@ -34,11 +35,7 @@ impl Db {
         Ok(migrations)
     }
 
-    pub fn apply_migration(
-        &mut self,
-        sql: &str,
-        migration: &Migration,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn apply_migration(&mut self, sql: &str, migration: &Migration) -> Result<(), Error> {
         let mut transaction = self.client.transaction()?;
         transaction.batch_execute(sql)?;
         transaction.execute(
@@ -49,11 +46,7 @@ impl Db {
         Ok(())
     }
 
-    pub fn rollback_migration(
-        &mut self,
-        sql: &str,
-        migration: &Migration,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn rollback_migration(&mut self, sql: &str, migration: &Migration) -> Result<(), Error> {
         let mut transaction = self.client.transaction()?;
         transaction.batch_execute(sql)?;
         transaction.execute(
@@ -67,10 +60,10 @@ impl Db {
 
 fn connection_string(config: &Config) -> String {
     if let Some(password) = &config.pg_password {
-        return format!(
+        format!(
             "postgresql://{}:{}@{}:{}/{}",
             config.pg_user, password, config.pg_host, config.pg_port, config.pg_db
-        );
+        )
     } else {
         format!(
             "postgresql://{}@{}:{}/{}",

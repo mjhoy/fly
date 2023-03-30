@@ -2,21 +2,32 @@ use clap::Parser;
 use command::Command;
 use config::Config;
 use db::Db;
+use error::Error;
 use migration::Migration;
 use std::{io::Write, path::Path, time::SystemTime};
 
 mod command;
 mod config;
 mod db;
+mod error;
 mod migration;
 
 static MIGRATION_TEMPLATE: &str = "-- up\n\n-- down\n";
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() {
+    match run_fly() {
+        Ok(_) => {}
+        Err(e) => {
+            e.print_and_abort();
+        }
+    }
+}
+
+fn run_fly() -> Result<(), Error> {
     dotenv::dotenv().ok();
 
     let command = Command::parse();
-    let config = Config::from_env();
+    let config = Config::from_env()?;
     let mut db = Db::connect(&config)?;
     db.create_migrations_table()?;
 
@@ -111,10 +122,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn get_migrations(config: &Config) -> Result<Vec<Migration>, Box<dyn std::error::Error>> {
+fn get_migrations(config: &Config) -> Result<Vec<Migration>, Error> {
     let mut migrations = Vec::new();
 
-    let paths = std::fs::read_dir(&config.migrate_dir)?;
+    let paths = std::fs::read_dir(&config.migrate_dir).map_err(|e| {
+        Error::Standard(format!(
+            "problem reading migration directory ({}): {}",
+            &config.migrate_dir, e
+        ))
+    })?;
 
     for path in paths {
         let path = path?.path();
@@ -125,7 +141,7 @@ fn get_migrations(config: &Config) -> Result<Vec<Migration>, Box<dyn std::error:
     Ok(migrations)
 }
 
-fn path_to_migration(path: &Path) -> Result<Migration, Box<dyn std::error::Error>> {
+fn path_to_migration(path: &Path) -> Result<Migration, Error> {
     let filename = path
         .file_name()
         .map(|s| s.to_str().expect("path with invalid unicode"));
