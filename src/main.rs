@@ -31,10 +31,10 @@ fn run_fly() -> Result<(), Error> {
     let mut db = Db::connect(&config)?;
     db.create_migrations_table()?;
 
-    let names = db.get_applied_migrations()?;
+    let applied_migrations = db.get_applied_migrations()?;
     if config.debug {
         println!("migrations in schema table:");
-        println!("{:?}", names);
+        println!("{:?}", applied_migrations);
     }
 
     let mut migrations = get_migrations(&config)?;
@@ -48,7 +48,7 @@ fn run_fly() -> Result<(), Error> {
         Command::Up => {
             let mut any_mgrations_run = false;
             for migration in &migrations {
-                if !names.contains(&migration.identifier.as_str().to_owned()) {
+                if !applied_migrations.contains(&migration.identifier.as_str().to_owned()) {
                     println!("applying {}", migration.identifier);
                     let (up, _) = migration.up_down()?;
                     if config.debug {
@@ -63,11 +63,11 @@ fn run_fly() -> Result<(), Error> {
             }
         }
         Command::Down => {
-            if names.is_empty() {
+            if applied_migrations.is_empty() {
                 println!("no migrations to revert");
                 return Ok(());
             }
-            let candidate = names.last().unwrap();
+            let candidate = applied_migrations.last().unwrap();
             for migration in migrations.iter().rev() {
                 if migration.identifier == *candidate {
                     println!("reverting {}", migration.identifier);
@@ -89,7 +89,7 @@ fn run_fly() -> Result<(), Error> {
             for migration in &known_migrations {
                 all_migrations.push(migration.clone())
             }
-            for name in &names {
+            for name in &applied_migrations {
                 if !known_migrations.contains(name) {
                     all_migrations.push(name.clone());
                 }
@@ -97,7 +97,7 @@ fn run_fly() -> Result<(), Error> {
             all_migrations.sort();
             for migration in all_migrations {
                 if known_migrations.contains(&migration) {
-                    if names.contains(&migration) {
+                    if applied_migrations.contains(&migration) {
                         println!("{} [applied]", migration);
                     } else {
                         println!("{} [pending]", migration);
