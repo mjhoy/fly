@@ -17,7 +17,7 @@ pub struct Db {
 
 impl Db {
     pub fn connect(config: &Config) -> Result<Db, Error> {
-        let client = Client::connect(&connection_string(config), NoTls)?;
+        let client = Client::connect(&config.connection_string, NoTls)?;
         Ok(Db { client })
     }
 
@@ -55,19 +55,5 @@ impl Db {
         )?;
         transaction.commit()?;
         Ok(())
-    }
-}
-
-fn connection_string(config: &Config) -> String {
-    if let Some(password) = &config.pg_password {
-        format!(
-            "postgresql://{}:{}@{}:{}/{}",
-            config.pg_user, password, config.pg_host, config.pg_port, config.pg_db
-        )
-    } else {
-        format!(
-            "postgresql://{}@{}:{}/{}",
-            config.pg_user, config.pg_host, config.pg_port, config.pg_db
-        )
     }
 }

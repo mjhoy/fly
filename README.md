@@ -26,6 +26,9 @@ to look in a `.env` file.
 - `PG_PORT`
 - `PG_DB`
 
+You can also directly set a `PG_CONNECTION_STRING` instead of the
+individual `PG_` variables.
+
 ## Subcommands
 
 - `up`: Applies all pending migrations.
