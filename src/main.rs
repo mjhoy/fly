@@ -1,16 +1,12 @@
 use clap::Parser;
 use command::Command;
-use config::Config;
-use db::Db;
-use error::Error;
-use migration::Migration;
+use fly::config::Config;
+use fly::db::Db;
+use fly::error::Error;
+use fly::migration::Migration;
 use std::{io::Write, path::Path, time::SystemTime};
 
 mod command;
-mod config;
-mod db;
-mod error;
-mod migration;
 
 static MIGRATION_TEMPLATE: &str = "-- up\n\n-- down\n";
 
