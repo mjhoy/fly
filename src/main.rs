@@ -1,16 +1,12 @@
 use clap::Parser;
 use command::Command;
-use config::Config;
-use db::Db;
-use error::Error;
-use migration::Migration;
+use fly::config::Config;
+use fly::db::Db;
+use fly::error::Error;
+use fly::migration::Migration;
 use std::{io::Write, path::Path, time::SystemTime};
 
 mod command;
-mod config;
-mod db;
-mod error;
-mod migration;
 
 static MIGRATION_TEMPLATE: &str = "-- up\n\n-- down\n";
 
@@ -31,10 +27,10 @@ fn run_fly() -> Result<(), Error> {
     let mut db = Db::connect(&config)?;
     db.create_migrations_table()?;
 
-    let names = db.get_applied_migrations()?;
+    let applied_migrations = db.get_applied_migrations()?;
     if config.debug {
         println!("migrations in schema table:");
-        println!("{:?}", names);
+        println!("{:?}", applied_migrations);
     }
 
     let mut migrations = get_migrations(&config)?;
@@ -48,7 +44,7 @@ fn run_fly() -> Result<(), Error> {
         Command::Up => {
             let mut any_mgrations_run = false;
             for migration in &migrations {
-                if !names.contains(&migration.identifier.as_str().to_owned()) {
+                if !applied_migrations.contains(&migration.identifier.as_str().to_owned()) {
                     println!("applying {}", migration.identifier);
                     let (up, _) = migration.up_down()?;
                     if config.debug {
@@ -63,11 +59,11 @@ fn run_fly() -> Result<(), Error> {
             }
         }
         Command::Down => {
-            if names.is_empty() {
+            if applied_migrations.is_empty() {
                 println!("no migrations to revert");
                 return Ok(());
             }
-            let candidate = names.last().unwrap();
+            let candidate = applied_migrations.last().unwrap();
             for migration in migrations.iter().rev() {
                 if migration.identifier == *candidate {
                     println!("reverting {}", migration.identifier);
@@ -89,7 +85,7 @@ fn run_fly() -> Result<(), Error> {
             for migration in &known_migrations {
                 all_migrations.push(migration.clone())
             }
-            for name in &names {
+            for name in &applied_migrations {
                 if !known_migrations.contains(name) {
                     all_migrations.push(name.clone());
                 }
@@ -97,7 +93,7 @@ fn run_fly() -> Result<(), Error> {
             all_migrations.sort();
             for migration in all_migrations {
                 if known_migrations.contains(&migration) {
-                    if names.contains(&migration) {
+                    if applied_migrations.contains(&migration) {
                         println!("{} [applied]", migration);
                     } else {
                         println!("{} [pending]", migration);
@@ -112,10 +108,11 @@ fn run_fly() -> Result<(), Error> {
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .expect("time went backwards")
                 .as_secs();
-            let filename = format!("{}/{}-{}.sql", config.migrate_dir, timestamp, new_args.name);
-            let mut file = std::fs::File::create(&filename)?;
+            let filename = format!("{}-{}.sql", timestamp, new_args.name);
+            let path = config.migrate_dir.join(filename);
+            let mut file = std::fs::File::create(&path)?;
             file.write_all(MIGRATION_TEMPLATE.as_bytes())?;
-            println!("Created file {}", filename);
+            println!("Created file {}", path.display());
         }
     }
 
@@ -128,7 +125,8 @@ fn get_migrations(config: &Config) -> Result<Vec<Migration>, Error> {
     let paths = std::fs::read_dir(&config.migrate_dir).map_err(|e| {
         Error::Standard(format!(
             "problem reading migration directory ({}): {}",
-            &config.migrate_dir, e
+            &config.migrate_dir.display(),
+            e
         ))
     })?;
 
