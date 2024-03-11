@@ -48,17 +48,17 @@ fn get_env(key: &str, vars: &HashMap<String, String>) -> Result<String, Error> {
 }
 
 fn connection_string_from_env(env_vars: &HashMap<String, String>) -> Result<String, Error> {
-    if let Ok(connection_string) = get_env("PG_CONNECTION_STRING", &env_vars) {
+    if let Ok(connection_string) = get_env("PG_CONNECTION_STRING", env_vars) {
         Ok(connection_string)
     } else {
-        let pg_user = get_env("PG_USER", &env_vars)?;
+        let pg_user = get_env("PG_USER", env_vars)?;
         let maybe_pg_password = env_vars.get("PG_PASSWORD").map(|s| s.to_owned());
-        let pg_host = get_env("PG_HOST", &env_vars)?;
-        let pg_port_str = get_env("PG_PORT", &env_vars)?;
+        let pg_host = get_env("PG_HOST", env_vars)?;
+        let pg_port_str = get_env("PG_PORT", env_vars)?;
         let pg_port = pg_port_str
             .parse::<u16>()
             .map_err(|_| Error::Standard("couldn't parse PG_PORT".to_owned()))?;
-        let pg_db = get_env("PG_DB", &env_vars)?;
+        let pg_db = get_env("PG_DB", env_vars)?;
 
         let connection_string = if let Some(pg_password) = maybe_pg_password {
             format!(
