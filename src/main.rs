@@ -108,10 +108,11 @@ fn run_fly() -> Result<(), Error> {
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .expect("time went backwards")
                 .as_secs();
-            let filename = format!("{}/{}-{}.sql", config.migrate_dir, timestamp, new_args.name);
-            let mut file = std::fs::File::create(&filename)?;
+            let filename = format!("{}-{}.sql", timestamp, new_args.name);
+            let path = config.migrate_dir.join(filename);
+            let mut file = std::fs::File::create(&path)?;
             file.write_all(MIGRATION_TEMPLATE.as_bytes())?;
-            println!("Created file {}", filename);
+            println!("Created file {}", path.display());
         }
     }
 
@@ -124,7 +125,8 @@ fn get_migrations(config: &Config) -> Result<Vec<Migration>, Error> {
     let paths = std::fs::read_dir(&config.migrate_dir).map_err(|e| {
         Error::Standard(format!(
             "problem reading migration directory ({}): {}",
-            &config.migrate_dir, e
+            &config.migrate_dir.display(),
+            e
         ))
     })?;
 
