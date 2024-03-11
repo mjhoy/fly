@@ -19,3 +19,9 @@ path = "src/main.rs"
 clap = { version = "4.2.0", features = [ "derive" ] }
 dotenv = "0.15.0"
 postgres = "0.19.4"
+
+[dev-dependencies]
+assert_cmd = "2.0.14"
+predicates = "3.1.0"
+anyhow = "1.0.80"
+tempfile = "3.10.1"

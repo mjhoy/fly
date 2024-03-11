@@ -1,8 +1,23 @@
+use std::fmt;
+
+// TODO: use thiserror
+#[derive(Debug)]
 pub enum Error {
     Standard(String),
     Pg(postgres::Error),
     Io(std::io::Error),
     Env((String, std::env::VarError)),
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::Standard(s) => write!(f, "{}", s),
+            Error::Pg(e) => write!(f, "[postgres] {}", e),
+            Error::Io(e) => write!(f, "[io] {}", e),
+            Error::Env((s, e)) => write!(f, "[env] {} {}", s, e),
+        }
+    }
 }
 
 impl Error {
@@ -52,3 +67,5 @@ impl From<&str> for Error {
         Error::Standard(err.to_string())
     }
 }
+
+impl std::error::Error for Error {}
