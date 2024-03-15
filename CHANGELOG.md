@@ -5,6 +5,7 @@
 ### Changed
 
 - Broke out a separate `fly-migrate-core` library crate.
+- Touched up logging and errors a bit.
 
 ## [0.1.2] 2024-03-11
 

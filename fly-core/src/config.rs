@@ -1,7 +1,7 @@
 use crate::error::Error;
 use std::{
     collections::HashMap,
-    env::{self, VarError},
+    env,
     path::{Path, PathBuf},
 };
 
@@ -44,7 +44,9 @@ impl Config {
 fn get_env(key: &str, vars: &HashMap<String, String>) -> Result<String, Error> {
     vars.get(key)
         .map(|s| s.to_owned())
-        .ok_or(Error::Env((key.to_owned(), VarError::NotPresent)))
+        .ok_or(Error::MissingEnv {
+            name: key.to_owned(),
+        })
 }
 
 fn connection_string_from_env(env_vars: &HashMap<String, String>) -> Result<String, Error> {
@@ -57,7 +59,9 @@ fn connection_string_from_env(env_vars: &HashMap<String, String>) -> Result<Stri
         let pg_port_str = get_env("PG_PORT", env_vars)?;
         let pg_port = pg_port_str
             .parse::<u16>()
-            .map_err(|_| Error::Standard("couldn't parse PG_PORT".to_owned()))?;
+            .map_err(|_| Error::BadEnvFormat {
+                name: "PG_PORT".to_string(),
+            })?;
         let pg_db = get_env("PG_DB", env_vars)?;
 
         let connection_string = if let Some(pg_password) = maybe_pg_password {

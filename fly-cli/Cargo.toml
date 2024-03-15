@@ -18,6 +18,7 @@ dotenv.workspace = true
 postgres.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+anyhow.workspace = true
 
 [dev-dependencies]
 assert_cmd.workspace = true
