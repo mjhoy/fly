@@ -68,4 +68,13 @@ impl From<&str> for Error {
     }
 }
 
-impl std::error::Error for Error {}
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::Standard(_) => None,
+            Error::Pg(e) => Some(e),
+            Error::Io(e) => Some(e),
+            Error::Env((_, e)) => Some(e),
+        }
+    }
+}
