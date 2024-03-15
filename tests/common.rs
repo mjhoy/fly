@@ -16,6 +16,8 @@ pub struct TestDatabase {
 
 impl TestDatabase {
     pub fn new() -> Result<TestDatabase> {
+        dotenv::from_filename(".env.test").ok();
+
         let env_vars = env::vars().collect::<HashMap<String, String>>();
         let host = env_vars
             .get("TEST_PG_HOST")
