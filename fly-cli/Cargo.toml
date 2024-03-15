@@ -1,0 +1,26 @@
+[package]
+name = "fly-migrate"
+version = "0.1.2"
+edition = "2021"
+description = "A simple CLI database migration tool for postgresql."
+license = "MIT"
+repository = "https://github.com/mjhoy/fly"
+keywords = ["database", "migration"]
+
+[[bin]]
+name = "fly"
+path = "src/main.rs"
+
+[dependencies]
+fly-migrate-core = { path = "../fly-core" }
+clap.workspace = true
+dotenv.workspace = true
+postgres.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+assert_cmd.workspace = true
+predicates.workspace = true
+anyhow.workspace = true
+tempfile.workspace = true

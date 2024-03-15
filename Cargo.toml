@@ -1,26 +1,17 @@
-[package]
-name = "fly-migrate"
-version = "0.1.2"
-edition = "2021"
-description = "A simple CLI database migration tool for postgresql."
-license = "MIT"
-repository = "https://github.com/mjhoy/fly"
-keywords = ["database", "migration"]
+[workspace]
+resolver = "2"
+members = [
+  "fly-core",
+  "fly-cli"
+]
+default-members = ["fly-core"]
 
-[lib]
-name = "fly"
-path = "src/lib.rs"
-
-[[bin]]
-name = "fly"
-path = "src/cli/main.rs"
-
-[dependencies]
+[workspace.dependencies]
 clap = { version = "4.2.0", features = [ "derive" ] }
 dotenv = "0.15.0"
 postgres = "0.19.4"
-
-[dev-dependencies]
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 assert_cmd = "2.0.14"
 predicates = "3.1.0"
 anyhow = "1.0.80"

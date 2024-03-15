@@ -5,6 +5,7 @@ use fly::db::Db;
 use fly::error::Error;
 use fly::migration::Migration;
 use std::{io::Write, path::Path, time::SystemTime};
+use tracing::Level;
 
 mod command;
 
@@ -24,6 +25,18 @@ fn run_fly() -> Result<(), Error> {
 
     let command = Command::parse();
     let config = Config::from_env()?;
+    let level = if config.debug {
+        Level::DEBUG
+    } else {
+        Level::INFO
+    };
+
+    let subscriber = tracing_subscriber::FmtSubscriber::builder()
+        .with_max_level(level)
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber).expect("set global subscriber");
+
     let mut db = Db::connect(&config)?;
     db.create_migrations_table()?;
 

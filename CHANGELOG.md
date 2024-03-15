@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Broke out a separate `fly-migrate-core` library crate.
+
 ## [0.1.2] 2024-03-11
 
 ### Added
