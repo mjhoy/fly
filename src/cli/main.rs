@@ -42,7 +42,7 @@ fn run_fly() -> Result<(), Error> {
 
     match command {
         Command::Up => {
-            let mut any_mgrations_run = false;
+            let mut any_migrations_run = false;
             for migration in &migrations {
                 if !applied_migrations.contains(&migration.identifier.as_str().to_owned()) {
                     println!("applying {}", migration.identifier);
@@ -51,10 +51,10 @@ fn run_fly() -> Result<(), Error> {
                         println!("{}", up);
                     }
                     db.apply_migration(&up, migration)?;
-                    any_mgrations_run = true;
+                    any_migrations_run = true;
                 }
             }
-            if !any_mgrations_run {
+            if !any_migrations_run {
                 println!("database is up to date");
             }
         }
