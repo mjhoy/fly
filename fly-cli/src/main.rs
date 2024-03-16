@@ -15,7 +15,7 @@ fn main() -> Result<()> {
     dotenv::dotenv().ok();
 
     let command = Command::parse();
-    let config = Config::from_env().context("couldn't load config")?;
+    let config = Config::from_env()?;
     let level = if config.debug {
         Level::DEBUG
     } else {
@@ -38,13 +38,31 @@ fn main() -> Result<()> {
     let applied_migrations = db.get_applied_migrations()?;
 
     debug!("migrations in schema table:");
-    debug!("{:?}", applied_migrations);
+    debug!(
+        "{}",
+        if applied_migrations.is_empty() {
+            "(empty)".to_string()
+        } else {
+            applied_migrations.join("\n")
+        }
+    );
 
     let mut migrations = get_migrations(&config)?;
     migrations.sort_by(|a, b| a.identifier.cmp(&b.identifier));
 
     debug!("migrations in migrations dir:");
-    debug!("{:?}", migrations);
+    debug!(
+        "{}",
+        if migrations.is_empty() {
+            "(empty)".to_string()
+        } else {
+            migrations
+                .iter()
+                .map(|m| m.path.clone())
+                .collect::<Vec<_>>()
+                .join("\n")
+        }
+    );
 
     match command {
         Command::Up => {
