@@ -10,4 +10,6 @@ pub enum Error {
     MissingEnv { name: String },
     #[error("couldn't parse environment variable {name}")]
     BadEnvFormat { name: String },
+    #[error("bad filename {name}: {reason}")]
+    BadFilename { name: String, reason: String },
 }

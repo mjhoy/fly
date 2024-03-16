@@ -35,9 +35,9 @@ impl Db {
         Ok(migrations)
     }
 
-    pub fn apply_migration(&mut self, sql: &str, migration: &Migration) -> Result<(), Error> {
+    pub fn apply_migration(&mut self, migration: &Migration) -> Result<(), Error> {
         let mut transaction = self.client.transaction()?;
-        transaction.batch_execute(sql)?;
+        transaction.batch_execute(&migration.up_sql)?;
         transaction.execute(
             "INSERT INTO migrations (name) VALUES ($1)",
             &[&migration.identifier],
@@ -46,9 +46,9 @@ impl Db {
         Ok(())
     }
 
-    pub fn rollback_migration(&mut self, sql: &str, migration: &Migration) -> Result<(), Error> {
+    pub fn rollback_migration(&mut self, migration: &Migration) -> Result<(), Error> {
         let mut transaction = self.client.transaction()?;
-        transaction.batch_execute(sql)?;
+        transaction.batch_execute(&migration.down_sql)?;
         transaction.execute(
             "DELETE FROM migrations WHERE name = $1",
             &[&migration.identifier],

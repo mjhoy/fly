@@ -4,7 +4,7 @@ use command::Command;
 use fly::config::Config;
 use fly::db::Db;
 use fly::migration::Migration;
-use std::{io::Write, path::Path, time::SystemTime};
+use std::{io::Write, time::SystemTime};
 use tracing::{debug, info, Level};
 
 mod command;
@@ -58,7 +58,7 @@ fn main() -> Result<()> {
         } else {
             migrations
                 .iter()
-                .map(|m| m.path.clone())
+                .map(|m| m.identifier.clone())
                 .collect::<Vec<_>>()
                 .join("\n")
         }
@@ -70,9 +70,8 @@ fn main() -> Result<()> {
             for migration in &migrations {
                 if !applied_migrations.contains(&migration.identifier.as_str().to_owned()) {
                     info!("applying {}", migration.identifier);
-                    let (up, _) = migration.up_down()?;
-                    debug!("{}", up);
-                    db.apply_migration(&up, migration)?;
+                    debug!("{}", migration.up_sql);
+                    db.apply_migration(migration)?;
                     any_migrations_run = true;
                 }
             }
@@ -89,9 +88,8 @@ fn main() -> Result<()> {
             for migration in migrations.iter().rev() {
                 if migration.identifier == *candidate {
                     info!("reverting {}", migration.identifier);
-                    let (_, down) = migration.up_down()?;
-                    debug!("{}", down);
-                    db.rollback_migration(&down, migration)?;
+                    debug!("{}", migration.down_sql);
+                    db.rollback_migration(migration)?;
                     break;
                 }
             }
@@ -151,21 +149,9 @@ fn get_migrations(config: &Config) -> Result<Vec<Migration>> {
 
     for path in paths {
         let path = path?.path();
-        let migration = path_to_migration(&path)?;
+        let migration = Migration::from_file(&path)?;
         migrations.push(migration);
     }
 
     Ok(migrations)
-}
-
-fn path_to_migration(path: &Path) -> Result<Migration> {
-    let filename = path
-        .file_name()
-        .ok_or_else(|| anyhow::anyhow!("invalid filename {}", path.to_string_lossy()))?
-        .to_str()
-        .with_context(|| format!("invalid unicode in filename {}", path.to_string_lossy()))?;
-    Ok(Migration {
-        path: String::from(path.to_str().unwrap()),
-        identifier: String::from(filename),
-    })
 }

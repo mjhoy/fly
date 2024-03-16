@@ -1,15 +1,30 @@
 use crate::error::Error;
-use std::io::Read;
+use std::{io::Read, path::Path};
 
 #[derive(Debug)]
 pub struct Migration {
-    pub path: String,
+    pub up_sql: String,
+    pub down_sql: String,
     pub identifier: String,
 }
 
 impl Migration {
-    pub fn up_down(&self) -> Result<(String, String), Error> {
-        let mut file = std::fs::File::open(&self.path)?;
+    /// Parse a `Migration` from a file.
+    pub fn from_file(path: impl AsRef<Path>) -> Result<Migration, Error> {
+        let identifier = path
+            .as_ref()
+            .file_name()
+            .ok_or_else(|| Error::BadFilename {
+                name: path.as_ref().to_string_lossy().to_string(),
+                reason: "requires a file name".to_string(),
+            })?
+            .to_str()
+            .ok_or_else(|| Error::BadFilename {
+                name: path.as_ref().to_string_lossy().to_string(),
+                reason: "not utf-8 encoded".to_string(),
+            })?
+            .to_string();
+        let mut file = std::fs::File::open(&path)?;
         let mut contents = String::new();
         file.read_to_string(&mut contents)?;
         let mut statements = contents.split('\n');
@@ -31,6 +46,10 @@ impl Migration {
             down.push_str(line);
             down.push('\n');
         }
-        Ok((up, down))
+        Ok(Migration {
+            up_sql: up,
+            down_sql: down,
+            identifier,
+        })
     }
 }
