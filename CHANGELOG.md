@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Integration tests and github CI.
+
 ### Changed
 
 - Broke out a separate `fly-migrate-core` library crate.
