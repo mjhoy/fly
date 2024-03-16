@@ -37,3 +37,18 @@ individual `PG_` variables.
 - `new`: Creates a new migration file.
 
 [fly-migrate]: https://crates.io/crates/fly-migrate
+
+## Development
+
+### Testing
+
+Testing `fly` requires a postgres connection. You should set the
+following env variables:
+
+```
+TEST_PG_HOST=host
+TEST_PG_PORT=port
+TEST_PG_USER=user
+```
+
+You can put these in a `.env.test` in the root directory.

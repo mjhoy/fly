@@ -38,9 +38,9 @@ fn test_requires_migrate_dir_set() -> Result<()> {
     cmd.arg("up");
     cmd.current_dir(&workdir);
 
-    cmd.assert()
-        .failure()
-        .stderr(predicate::str::contains("env var not set: MIGRATE_DIR"));
+    cmd.assert().failure().stderr(predicate::str::contains(
+        "required environment variable MIGRATE_DIR not set",
+    ));
 
     Ok(())
 }
@@ -64,9 +64,9 @@ MIGRATE_DIR={}
     cmd.arg("up");
     cmd.current_dir(&workdir);
 
-    cmd.assert()
-        .failure()
-        .stderr(predicate::str::contains("env var not set: PG_USER"));
+    cmd.assert().failure().stderr(predicate::str::contains(
+        "required environment variable PG_USER not set",
+    ));
 
     Ok(())
 }
