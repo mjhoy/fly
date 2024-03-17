@@ -1,12 +1,14 @@
-use crate::config::Config;
 use crate::error::Error;
 use crate::migration::Migration;
+use crate::{config::Config, migration::MigrationWithMeta};
 use postgres::{Client, NoTls};
 
 static CREATE_MIGRATIONS_TABLE: &str = r#"
   CREATE TABLE IF NOT EXISTS migrations (
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL UNIQUE,
+      up_sql TEXT NOT NULL,
+      down_sql TEXT NOT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
   );
 "#;
@@ -26,33 +28,36 @@ impl Db {
         Ok(())
     }
 
-    pub fn get_applied_migrations(&mut self) -> Result<Vec<String>, Error> {
-        let rows = self.client.query("SELECT name FROM migrations", &[])?;
-        let mut migrations = Vec::new();
-        for row in rows {
-            migrations.push(row.get(0));
-        }
+    pub fn list(&mut self) -> Result<Vec<MigrationWithMeta>, Error> {
+        let rows = self.client.query("SELECT * FROM migrations", &[])?;
+        let migrations = rows
+            .iter()
+            .map(|row| MigrationWithMeta::try_from(row))
+            .collect::<Result<_, Error>>()?;
         Ok(migrations)
     }
 
-    pub fn apply_migration(&mut self, migration: &Migration) -> Result<(), Error> {
+    /// Panics if the INSERT statement does not return 1 row.
+    pub fn run(&mut self, migration: &Migration) -> Result<MigrationWithMeta, Error> {
         let mut transaction = self.client.transaction()?;
         transaction.batch_execute(&migration.up_sql)?;
-        transaction.execute(
-            "INSERT INTO migrations (name) VALUES ($1)",
-            &[&migration.identifier],
+        let rows = transaction.query(
+            "INSERT INTO migrations (name, up_sql, down_sql) VALUES ($1, $2, $3) RETURNING *",
+            &[&migration.name, &migration.up_sql, &migration.down_sql],
         )?;
+        let [ref row] = rows[..] else {
+            panic!("postgres inserted {} elements, expected 1", rows.len());
+        };
+        let migration = MigrationWithMeta::try_from(row)?;
+
         transaction.commit()?;
-        Ok(())
+        Ok(migration)
     }
 
     pub fn rollback_migration(&mut self, migration: &Migration) -> Result<(), Error> {
         let mut transaction = self.client.transaction()?;
         transaction.batch_execute(&migration.down_sql)?;
-        transaction.execute(
-            "DELETE FROM migrations WHERE name = $1",
-            &[&migration.identifier],
-        )?;
+        transaction.execute("DELETE FROM migrations WHERE name = $1", &[&migration.name])?;
         transaction.commit()?;
         Ok(())
     }

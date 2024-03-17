@@ -8,8 +8,10 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error("required environment variable {name} not set")]
     MissingEnv { name: String },
-    #[error("couldn't parse environment variable {name}")]
+    #[error("environment variable {name} could not be parsed")]
     BadEnvFormat { name: String },
-    #[error("bad filename {name}: {reason}")]
-    BadFilename { name: String, reason: String },
+    #[error("no filename given")]
+    FilenameRequired,
+    #[error("filename must be utf-8 encoded")]
+    FilenameBadEncoding,
 }

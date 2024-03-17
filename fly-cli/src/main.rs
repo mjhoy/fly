@@ -35,7 +35,7 @@ fn main() -> Result<()> {
     db.create_migrations_table()
         .context("failed creating migrations table")?;
 
-    let applied_migrations = db.get_applied_migrations()?;
+    let applied_migrations = db.list()?;
 
     debug!("migrations in schema table:");
     debug!(
@@ -43,12 +43,16 @@ fn main() -> Result<()> {
         if applied_migrations.is_empty() {
             "(empty)".to_string()
         } else {
-            applied_migrations.join("\n")
+            applied_migrations
+                .iter()
+                .map(|migration| format!("{:?}", &migration))
+                .collect::<Vec<_>>()
+                .join("\n")
         }
     );
 
     let mut migrations = get_migrations(&config)?;
-    migrations.sort_by(|a, b| a.identifier.cmp(&b.identifier));
+    migrations.sort_by(|a, b| a.name.cmp(&b.name));
 
     debug!("migrations in migrations dir:");
     debug!(
@@ -58,7 +62,7 @@ fn main() -> Result<()> {
         } else {
             migrations
                 .iter()
-                .map(|m| m.identifier.clone())
+                .map(|m| m.name.clone())
                 .collect::<Vec<_>>()
                 .join("\n")
         }
@@ -68,10 +72,14 @@ fn main() -> Result<()> {
         Command::Up => {
             let mut any_migrations_run = false;
             for migration in &migrations {
-                if !applied_migrations.contains(&migration.identifier.as_str().to_owned()) {
-                    info!("applying {}", migration.identifier);
+                if !applied_migrations
+                    .iter()
+                    .find(|m| m.migration.name == migration.name)
+                    .is_some()
+                {
+                    info!("applying {}", migration.name);
                     debug!("{}", migration.up_sql);
-                    db.apply_migration(migration)?;
+                    db.run(migration)?;
                     any_migrations_run = true;
                 }
             }
@@ -86,8 +94,8 @@ fn main() -> Result<()> {
             }
             let candidate = applied_migrations.last().unwrap();
             for migration in migrations.iter().rev() {
-                if migration.identifier == *candidate {
-                    info!("reverting {}", migration.identifier);
+                if migration.name == *candidate.migration.name {
+                    info!("reverting {}", migration.name);
                     debug!("{}", migration.down_sql);
                     db.rollback_migration(migration)?;
                     break;
@@ -96,28 +104,29 @@ fn main() -> Result<()> {
         }
         Command::Status => {
             let mut all_migrations = Vec::new();
-            let known_migrations = migrations
-                .iter()
-                .map(|m| m.identifier.clone())
-                .collect::<Vec<String>>();
+            let known_migrations = migrations;
             for migration in &known_migrations {
                 all_migrations.push(migration.clone())
             }
-            for name in &applied_migrations {
-                if !known_migrations.contains(name) {
-                    all_migrations.push(name.clone());
+            for migration in applied_migrations.iter().map(|m| &m.migration) {
+                if !known_migrations.contains(&migration) {
+                    all_migrations.push(migration.clone());
                 }
             }
             all_migrations.sort();
             for migration in all_migrations {
                 if known_migrations.contains(&migration) {
-                    if applied_migrations.contains(&migration) {
-                        info!("{} [applied]", migration);
+                    if applied_migrations
+                        .iter()
+                        .find(|m| m.migration == migration)
+                        .is_some()
+                    {
+                        info!("{} [applied]", migration.name);
                     } else {
-                        info!("{} [pending]", migration);
+                        info!("{} [pending]", migration.name);
                     }
                 } else {
-                    info!("{} ** NO FILE **", migration);
+                    info!("{} ** NO FILE **", migration.name);
                 }
             }
         }
