@@ -2,6 +2,7 @@ use crate::error::Error;
 use crate::migration::Migration;
 use crate::{config::Config, migration::MigrationWithMeta};
 use postgres::{Client, NoTls};
+use tracing::debug;
 
 static CREATE_MIGRATIONS_TABLE: &str = r#"
   CREATE TABLE IF NOT EXISTS migrations (
@@ -39,6 +40,7 @@ impl Db {
 
     /// Panics if the INSERT statement does not return 1 row.
     pub fn run(&mut self, migration: &Migration) -> Result<MigrationWithMeta, Error> {
+        debug!("inserting migration {:?}", migration);
         let mut transaction = self.client.transaction()?;
         transaction.batch_execute(&migration.up_sql)?;
         let rows = transaction.query(
@@ -55,6 +57,7 @@ impl Db {
     }
 
     pub fn rollback_migration(&mut self, migration: &Migration) -> Result<(), Error> {
+        debug!("rolling back migration {:?}", migration);
         let mut transaction = self.client.transaction()?;
         transaction.batch_execute(&migration.down_sql)?;
         transaction.execute("DELETE FROM migrations WHERE name = $1", &[&migration.name])?;
