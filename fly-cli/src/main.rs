@@ -74,8 +74,7 @@ fn main() -> Result<()> {
             for migration in &migrations {
                 if !applied_migrations
                     .iter()
-                    .find(|m| m.migration.name == migration.name)
-                    .is_some()
+                    .any(|m| m.migration.name == migration.name)
                 {
                     info!("applying {}", migration.name);
                     debug!("{}", migration.up_sql);
@@ -109,18 +108,14 @@ fn main() -> Result<()> {
                 all_migrations.push(migration.clone())
             }
             for migration in applied_migrations.iter().map(|m| &m.migration) {
-                if !known_migrations.contains(&migration) {
+                if !known_migrations.contains(migration) {
                     all_migrations.push(migration.clone());
                 }
             }
             all_migrations.sort();
             for migration in all_migrations {
                 if known_migrations.contains(&migration) {
-                    if applied_migrations
-                        .iter()
-                        .find(|m| m.migration == migration)
-                        .is_some()
-                    {
+                    if applied_migrations.iter().any(|m| m.migration == migration) {
                         info!("{} [applied]", migration.name);
                     } else {
                         info!("{} [pending]", migration.name);

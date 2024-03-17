@@ -33,7 +33,7 @@ impl Db {
         let rows = self.client.query("SELECT * FROM migrations", &[])?;
         let migrations = rows
             .iter()
-            .map(|row| MigrationWithMeta::try_from(row))
+            .map(MigrationWithMeta::try_from)
             .collect::<Result<_, Error>>()?;
         Ok(migrations)
     }

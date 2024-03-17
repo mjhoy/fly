@@ -86,7 +86,7 @@ fn test_returns_ok() -> Result<()> {
     let database = common::TestDatabase::new()?;
 
     fs::write(
-        &env_file,
+        env_file,
         format!(
             r#"
 MIGRATE_DIR={migrate_dir}
@@ -123,7 +123,7 @@ fn test_accepts_pg_connection_string() -> Result<()> {
     let database = common::TestDatabase::new()?;
 
     fs::write(
-        &env_file,
+        env_file,
         format!(
             r#"
 MIGRATE_DIR={migrate_dir}
@@ -157,7 +157,7 @@ fn test_migrates_up_and_down() -> Result<()> {
     let database = common::TestDatabase::new()?;
 
     fs::write(
-        &env_file,
+        env_file,
         format!(
             r#"
 MIGRATE_DIR={migrate_dir}
@@ -195,7 +195,7 @@ PG_DB={database}
     let mut f = OpenOptions::new()
         .write(true)
         .create_new(false)
-        .open(&workdir.join(filename))?;
+        .open(workdir.join(filename))?;
 
     write!(
         &mut f,
