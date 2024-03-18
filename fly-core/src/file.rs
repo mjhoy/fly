@@ -1,8 +1,8 @@
-use crate::{error::Error, migration::Migration};
+use crate::{error::Error, error::Result, migration::Migration};
 use std::io::Read;
 use std::path::Path;
 
-pub fn list(migrate_dir: impl AsRef<Path>) -> Result<Vec<Migration>, Error> {
+pub fn list(migrate_dir: impl AsRef<Path>) -> Result<Vec<Migration>> {
     let paths = std::fs::read_dir(migrate_dir.as_ref())?;
 
     let mut migrations = Vec::new();
@@ -13,7 +13,7 @@ pub fn list(migrate_dir: impl AsRef<Path>) -> Result<Vec<Migration>, Error> {
     Ok(migrations)
 }
 
-fn parse_migration(path: impl AsRef<Path>) -> Result<Migration, Error> {
+fn parse_migration(path: impl AsRef<Path>) -> Result<Migration> {
     let name = path
         .as_ref()
         .file_name()

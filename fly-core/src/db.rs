@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use crate::error::Error;
+use crate::error::Result;
 use crate::migration::{Migration, MigrationMeta};
 use crate::{config::Config, migration::MigrationWithMeta};
 use postgres::{Client, NoTls, Row};
@@ -21,27 +21,27 @@ pub struct Db {
 }
 
 impl Db {
-    pub fn connect(config: &Config) -> Result<Db, Error> {
+    pub fn connect(config: &Config) -> Result<Db> {
         let client = Client::connect(&config.connection_string, NoTls)?;
         Ok(Db { client })
     }
 
-    pub fn create_migrations_table(&mut self) -> Result<(), Error> {
+    pub fn create_migrations_table(&mut self) -> Result<()> {
         self.client.batch_execute(CREATE_MIGRATIONS_TABLE)?;
         Ok(())
     }
 
-    pub fn list(&mut self) -> Result<Vec<MigrationWithMeta>, Error> {
+    pub fn list(&mut self) -> Result<Vec<MigrationWithMeta>> {
         let rows = self.client.query("SELECT * FROM migrations", &[])?;
         let migrations = rows
             .iter()
             .map(parse_migration_with_meta)
-            .collect::<Result<_, _>>()?;
+            .collect::<Result<_>>()?;
         Ok(migrations)
     }
 
     /// Panics if the INSERT statement does not return 1 row.
-    pub fn run(&mut self, migration: &Migration) -> Result<MigrationWithMeta, Error> {
+    pub fn run(&mut self, migration: &Migration) -> Result<MigrationWithMeta> {
         debug!("inserting migration {:?}", migration);
         let mut transaction = self.client.transaction()?;
         transaction.batch_execute(&migration.up_sql)?;
@@ -58,7 +58,7 @@ impl Db {
         Ok(migration)
     }
 
-    pub fn rollback_migration(&mut self, migration: &Migration) -> Result<(), Error> {
+    pub fn rollback_migration(&mut self, migration: &Migration) -> Result<()> {
         debug!("rolling back migration {:?}", migration);
         let mut transaction = self.client.transaction()?;
         transaction.batch_execute(&migration.down_sql)?;
@@ -68,7 +68,7 @@ impl Db {
     }
 }
 
-fn parse_migration_with_meta(row: &Row) -> Result<MigrationWithMeta, Error> {
+fn parse_migration_with_meta(row: &Row) -> Result<MigrationWithMeta> {
     let up_sql = row.try_get::<_, String>("up_sql")?;
     let down_sql = row.try_get::<_, String>("down_sql")?;
     let name = row.try_get::<_, String>("name")?;

@@ -1,4 +1,4 @@
-use crate::error::Error;
+use crate::error::{Error, Result};
 use std::{
     collections::HashMap,
     env,
@@ -27,7 +27,7 @@ impl Config {
         }
     }
 
-    pub fn from_env() -> Result<Self, Error> {
+    pub fn from_env() -> Result<Self> {
         let env_vars = env::vars().collect::<HashMap<String, String>>();
         let migrate_dir = get_env("MIGRATE_DIR", &env_vars)?.into();
         let debug = env_vars.get("DEBUG").unwrap_or(&"false".to_owned()) == "true";
@@ -41,7 +41,7 @@ impl Config {
     }
 }
 
-fn get_env(key: &str, vars: &HashMap<String, String>) -> Result<String, Error> {
+fn get_env(key: &str, vars: &HashMap<String, String>) -> Result<String> {
     vars.get(key)
         .map(|s| s.to_owned())
         .ok_or(Error::MissingEnv {
@@ -49,7 +49,7 @@ fn get_env(key: &str, vars: &HashMap<String, String>) -> Result<String, Error> {
         })
 }
 
-fn connection_string_from_env(env_vars: &HashMap<String, String>) -> Result<String, Error> {
+fn connection_string_from_env(env_vars: &HashMap<String, String>) -> Result<String> {
     if let Ok(connection_string) = get_env("PG_CONNECTION_STRING", env_vars) {
         Ok(connection_string)
     } else {

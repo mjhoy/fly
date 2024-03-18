@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+pub(crate) type Result<T> = core::result::Result<T, Error>;
+
 #[derive(Error, Debug)]
 pub enum Error {
     #[error(transparent)]
