@@ -1,5 +1,4 @@
 use crate::error::Error;
-use postgres::Row;
 use std::{cmp::Ordering, io::Read, path::Path, time::SystemTime};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,29 +30,6 @@ pub struct MigrationMeta {
 pub struct MigrationWithMeta {
     pub migration: Migration,
     pub meta: MigrationMeta,
-}
-
-impl TryFrom<&Row> for MigrationWithMeta {
-    type Error = Error;
-
-    fn try_from(row: &Row) -> Result<Self, Self::Error> {
-        let up_sql = row.try_get::<_, String>("up_sql")?;
-        let down_sql = row.try_get::<_, String>("down_sql")?;
-        let name = row.try_get::<_, String>("name")?;
-
-        let migration = Migration {
-            up_sql,
-            down_sql,
-            name,
-        };
-
-        let id = row.try_get::<_, i32>("id")?;
-        let created_at = row.try_get::<_, SystemTime>("created_at")?;
-
-        let meta = MigrationMeta { id, created_at };
-
-        Ok(MigrationWithMeta { migration, meta })
-    }
 }
 
 impl Migration {

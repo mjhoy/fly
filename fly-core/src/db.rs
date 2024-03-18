@@ -1,7 +1,9 @@
+use std::time::SystemTime;
+
 use crate::error::Error;
-use crate::migration::Migration;
+use crate::migration::{Migration, MigrationMeta};
 use crate::{config::Config, migration::MigrationWithMeta};
-use postgres::{Client, NoTls};
+use postgres::{Client, NoTls, Row};
 use tracing::debug;
 
 static CREATE_MIGRATIONS_TABLE: &str = r#"
@@ -33,7 +35,7 @@ impl Db {
         let rows = self.client.query("SELECT * FROM migrations", &[])?;
         let migrations = rows
             .iter()
-            .map(MigrationWithMeta::try_from)
+            .map(parse_migration_with_meta)
             .collect::<Result<_, Error>>()?;
         Ok(migrations)
     }
@@ -50,7 +52,7 @@ impl Db {
         let [ref row] = rows[..] else {
             panic!("postgres inserted {} elements, expected 1", rows.len());
         };
-        let migration = MigrationWithMeta::try_from(row)?;
+        let migration = parse_migration_with_meta(row)?;
 
         transaction.commit()?;
         Ok(migration)
@@ -64,4 +66,23 @@ impl Db {
         transaction.commit()?;
         Ok(())
     }
+}
+
+fn parse_migration_with_meta(row: &Row) -> Result<MigrationWithMeta, Error> {
+    let up_sql = row.try_get::<_, String>("up_sql")?;
+    let down_sql = row.try_get::<_, String>("down_sql")?;
+    let name = row.try_get::<_, String>("name")?;
+
+    let migration = Migration {
+        up_sql,
+        down_sql,
+        name,
+    };
+
+    let id = row.try_get::<_, i32>("id")?;
+    let created_at = row.try_get::<_, SystemTime>("created_at")?;
+
+    let meta = MigrationMeta { id, created_at };
+
+    Ok(MigrationWithMeta { migration, meta })
 }
