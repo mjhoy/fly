@@ -16,4 +16,6 @@ pub enum Error {
     FilenameRequired,
     #[error("filename must be utf-8 encoded")]
     FilenameBadEncoding,
+    #[error("bad migration file format in {name}: {reason}")]
+    MigrationFileFormatError { reason: String, name: String },
 }
