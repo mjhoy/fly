@@ -36,7 +36,7 @@ impl Db {
         let migrations = rows
             .iter()
             .map(parse_migration_with_meta)
-            .collect::<Result<_, Error>>()?;
+            .collect::<Result<_, _>>()?;
         Ok(migrations)
     }
 

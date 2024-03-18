@@ -3,7 +3,6 @@ use clap::Parser;
 use command::Command;
 use fly::config::Config;
 use fly::db::Db;
-use fly::migration::Migration;
 use std::{io::Write, time::SystemTime};
 use tracing::{debug, info, Level};
 
@@ -51,7 +50,7 @@ fn main() -> Result<()> {
         }
     );
 
-    let mut migrations = get_migrations(&config)?;
+    let mut migrations = fly::file::list(&config.migrate_dir)?;
     migrations.sort_by(|a, b| a.name.cmp(&b.name));
 
     debug!("migrations in migrations dir:");
@@ -139,23 +138,4 @@ fn main() -> Result<()> {
     }
 
     Ok(())
-}
-
-fn get_migrations(config: &Config) -> Result<Vec<Migration>> {
-    let mut migrations = Vec::new();
-
-    let paths = std::fs::read_dir(&config.migrate_dir).with_context(|| {
-        format!(
-            "problem reading migration directory ({})",
-            &config.migrate_dir.display()
-        )
-    })?;
-
-    for path in paths {
-        let path = path?.path();
-        let migration = Migration::from_file(&path)?;
-        migrations.push(migration);
-    }
-
-    Ok(migrations)
 }
