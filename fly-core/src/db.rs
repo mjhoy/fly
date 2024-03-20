@@ -1,9 +1,8 @@
-use std::time::SystemTime;
-
 use crate::error::Result;
 use crate::migration::{Migration, MigrationMeta};
 use crate::{config::Config, migration::MigrationWithMeta};
 use postgres::{Client, NoTls, Row};
+use std::time::SystemTime;
 use tracing::debug;
 
 static CREATE_MIGRATIONS_TABLE: &str = r#"

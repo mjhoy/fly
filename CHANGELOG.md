@@ -4,6 +4,9 @@
 
 ### Added
 
+- (Breaking) The `up`/`down` sql strings are now tracked in the
+  database. This allows fly to know when a migration has been changed,
+  and how to un-apply an old or removed migration.
 - Integration tests and github CI.
 
 ### Changed

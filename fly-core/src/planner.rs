@@ -26,37 +26,19 @@ pub enum ApplicationState {
 
 impl ApplicationState {
     pub fn is_pending(&self) -> bool {
-        match self {
-            ApplicationState::Pending { definition: _ } => true,
-            _ => false,
-        }
+        matches!(self, ApplicationState::Pending { .. })
     }
 
     pub fn is_applied(&self) -> bool {
-        match self {
-            ApplicationState::Applied {
-                definition: _,
-                application: _,
-            } => true,
-            _ => false,
-        }
+        matches!(self, ApplicationState::Applied { .. })
     }
 
     pub fn is_changed(&self) -> bool {
-        match self {
-            ApplicationState::Changed {
-                definition: _,
-                application: _,
-            } => true,
-            _ => false,
-        }
+        matches!(self, ApplicationState::Changed { .. })
     }
 
     pub fn is_removed(&self) -> bool {
-        match self {
-            ApplicationState::Removed { application: _ } => true,
-            _ => false,
-        }
+        matches!(self, ApplicationState::Removed { .. })
     }
 }
 
@@ -104,9 +86,9 @@ fn get_all_migration_state_impl(
         .collect::<HashMap<String, MigrationWithMeta>>();
 
     let mut all_names = definitions
-        .iter()
-        .map(|(_, v)| v.name.clone())
-        .chain(applications.iter().map(|(_, v)| v.migration.name.clone()))
+        .values()
+        .map(|v| v.name.clone())
+        .chain(applications.values().map(|v| v.migration.name.clone()))
         .collect::<Vec<String>>();
     all_names.sort();
     all_names.dedup();
