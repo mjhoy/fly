@@ -18,3 +18,4 @@ anyhow = "1.0.81"
 tempfile = "3.10.1"
 thiserror = "1.0.58"
 postgres-types = { version = "0.2.6", features = ["derive"] }
+rand = "0.8.5"

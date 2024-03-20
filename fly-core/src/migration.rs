@@ -19,13 +19,13 @@ impl Ord for Migration {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MigrationMeta {
     pub id: i32,
     pub created_at: SystemTime,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MigrationWithMeta {
     pub migration: Migration,
     pub meta: MigrationMeta,

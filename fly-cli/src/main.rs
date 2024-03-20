@@ -1,10 +1,11 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use command::Command;
-use fly::config::Config;
 use fly::db::Db;
+use fly::planner::ApplicationState;
+use fly::{config::Config, planner::get_all_migration_state};
 use std::{io::Write, time::SystemTime};
-use tracing::{debug, info, Level};
+use tracing::{debug, error, info, Level};
 
 mod command;
 
@@ -34,34 +35,17 @@ fn main() -> Result<()> {
     db.create_migrations_table()
         .context("failed creating migrations table")?;
 
-    let applied_migrations = db.list()?;
+    let application_state = get_all_migration_state(&mut db, &config.migrate_dir)?;
 
-    debug!("migrations in schema table:");
+    debug!("migration state:");
     debug!(
         "{}",
-        if applied_migrations.is_empty() {
-            "(empty)".to_string()
+        if application_state.is_empty() {
+            "(no migrations defined or applied)".to_string()
         } else {
-            applied_migrations
+            application_state
                 .iter()
-                .map(|migration| format!("{:?}", &migration))
-                .collect::<Vec<_>>()
-                .join("\n")
-        }
-    );
-
-    let mut migrations = fly::file::list(&config.migrate_dir)?;
-    migrations.sort_by(|a, b| a.name.cmp(&b.name));
-
-    debug!("migrations in migrations dir:");
-    debug!(
-        "{}",
-        if migrations.is_empty() {
-            "(empty)".to_string()
-        } else {
-            migrations
-                .iter()
-                .map(|m| m.name.clone())
+                .map(|application| format!("{}", &application))
                 .collect::<Vec<_>>()
                 .join("\n")
         }
@@ -70,15 +54,15 @@ fn main() -> Result<()> {
     match command {
         Command::Up => {
             let mut any_migrations_run = false;
-            for migration in &migrations {
-                if !applied_migrations
-                    .iter()
-                    .any(|m| m.migration.name == migration.name)
-                {
-                    info!("applying {}", migration.name);
-                    debug!("{}", migration.up_sql);
-                    db.run(migration)?;
-                    any_migrations_run = true;
+            for application in &application_state {
+                match application {
+                    ApplicationState::Pending { definition } => {
+                        info!("applying {}", definition.name);
+                        debug!("{}", definition.up_sql);
+                        db.run(definition)?;
+                        any_migrations_run = true;
+                    }
+                    _ => continue,
                 }
             }
             if !any_migrations_run {
@@ -86,42 +70,29 @@ fn main() -> Result<()> {
             }
         }
         Command::Down => {
-            if applied_migrations.is_empty() {
-                info!("no migrations to revert");
-                return Ok(());
-            }
-            let candidate = applied_migrations.last().unwrap();
-            for migration in migrations.iter().rev() {
-                if migration.name == *candidate.migration.name {
-                    info!("reverting {}", migration.name);
-                    debug!("{}", migration.down_sql);
-                    db.rollback_migration(migration)?;
-                    break;
-                }
+            let last_non_pending = application_state
+                .iter()
+                .rfind(|application| !application.is_pending());
+            match last_non_pending {
+                Some(application) => match application {
+                    ApplicationState::Applied {
+                        definition,
+                        application: _,
+                    } => {
+                        debug!(definition.down_sql);
+                        info!("reverting {}", definition.name);
+                        db.rollback_migration(definition)?;
+                    }
+                    _ => {
+                        error!("expected clean migration history, got {}", application)
+                    }
+                },
+                None => info!("no migrations to revert"),
             }
         }
         Command::Status => {
-            let mut all_migrations = Vec::new();
-            let known_migrations = migrations;
-            for migration in &known_migrations {
-                all_migrations.push(migration.clone())
-            }
-            for migration in applied_migrations.iter().map(|m| &m.migration) {
-                if !known_migrations.contains(migration) {
-                    all_migrations.push(migration.clone());
-                }
-            }
-            all_migrations.sort();
-            for migration in all_migrations {
-                if known_migrations.contains(&migration) {
-                    if applied_migrations.iter().any(|m| m.migration == migration) {
-                        info!("{} [applied]", migration.name);
-                    } else {
-                        info!("{} [pending]", migration.name);
-                    }
-                } else {
-                    info!("{} ** NO FILE **", migration.name);
-                }
+            for application in &application_state {
+                println!("{}", application);
             }
         }
         Command::New(new_args) => {
