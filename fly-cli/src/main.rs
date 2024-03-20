@@ -1,11 +1,11 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use command::Command;
-use fly::config::Config;
 use fly::db::Db;
-use fly::migration::Migration;
-use std::{io::Write, path::Path, time::SystemTime};
-use tracing::{debug, info, Level};
+use fly::planner::ApplicationState;
+use fly::{config::Config, planner::get_all_migration_state};
+use std::{io::Write, time::SystemTime};
+use tracing::{debug, error, info, Level};
 
 mod command;
 
@@ -35,30 +35,17 @@ fn main() -> Result<()> {
     db.create_migrations_table()
         .context("failed creating migrations table")?;
 
-    let applied_migrations = db.get_applied_migrations()?;
+    let application_state = get_all_migration_state(&mut db, &config.migrate_dir)?;
 
-    debug!("migrations in schema table:");
+    debug!("migration state:");
     debug!(
         "{}",
-        if applied_migrations.is_empty() {
-            "(empty)".to_string()
+        if application_state.is_empty() {
+            "(no migrations defined or applied)".to_string()
         } else {
-            applied_migrations.join("\n")
-        }
-    );
-
-    let mut migrations = get_migrations(&config)?;
-    migrations.sort_by(|a, b| a.identifier.cmp(&b.identifier));
-
-    debug!("migrations in migrations dir:");
-    debug!(
-        "{}",
-        if migrations.is_empty() {
-            "(empty)".to_string()
-        } else {
-            migrations
+            application_state
                 .iter()
-                .map(|m| m.path.clone())
+                .map(|application| format!("{}", &application))
                 .collect::<Vec<_>>()
                 .join("\n")
         }
@@ -67,13 +54,15 @@ fn main() -> Result<()> {
     match command {
         Command::Up => {
             let mut any_migrations_run = false;
-            for migration in &migrations {
-                if !applied_migrations.contains(&migration.identifier.as_str().to_owned()) {
-                    info!("applying {}", migration.identifier);
-                    let (up, _) = migration.up_down()?;
-                    debug!("{}", up);
-                    db.apply_migration(&up, migration)?;
-                    any_migrations_run = true;
+            for application in &application_state {
+                match application {
+                    ApplicationState::Pending { definition } => {
+                        info!("applying {}", definition.name);
+                        debug!("{}", definition.up_sql);
+                        db.run(definition)?;
+                        any_migrations_run = true;
+                    }
+                    _ => continue,
                 }
             }
             if !any_migrations_run {
@@ -81,46 +70,29 @@ fn main() -> Result<()> {
             }
         }
         Command::Down => {
-            if applied_migrations.is_empty() {
-                info!("no migrations to revert");
-                return Ok(());
-            }
-            let candidate = applied_migrations.last().unwrap();
-            for migration in migrations.iter().rev() {
-                if migration.identifier == *candidate {
-                    info!("reverting {}", migration.identifier);
-                    let (_, down) = migration.up_down()?;
-                    debug!("{}", down);
-                    db.rollback_migration(&down, migration)?;
-                    break;
-                }
+            let last_non_pending = application_state
+                .iter()
+                .rfind(|application| !application.is_pending());
+            match last_non_pending {
+                Some(application) => match application {
+                    ApplicationState::Applied {
+                        definition,
+                        application: _,
+                    } => {
+                        debug!(definition.down_sql);
+                        info!("reverting {}", definition.name);
+                        db.rollback_migration(definition)?;
+                    }
+                    _ => {
+                        error!("expected clean migration history, got {}", application)
+                    }
+                },
+                None => info!("no migrations to revert"),
             }
         }
         Command::Status => {
-            let mut all_migrations = Vec::new();
-            let known_migrations = migrations
-                .iter()
-                .map(|m| m.identifier.clone())
-                .collect::<Vec<String>>();
-            for migration in &known_migrations {
-                all_migrations.push(migration.clone())
-            }
-            for name in &applied_migrations {
-                if !known_migrations.contains(name) {
-                    all_migrations.push(name.clone());
-                }
-            }
-            all_migrations.sort();
-            for migration in all_migrations {
-                if known_migrations.contains(&migration) {
-                    if applied_migrations.contains(&migration) {
-                        info!("{} [applied]", migration);
-                    } else {
-                        info!("{} [pending]", migration);
-                    }
-                } else {
-                    info!("{} ** NO FILE **", migration);
-                }
+            for application in &application_state {
+                println!("{}", application);
             }
         }
         Command::New(new_args) => {
@@ -137,35 +109,4 @@ fn main() -> Result<()> {
     }
 
     Ok(())
-}
-
-fn get_migrations(config: &Config) -> Result<Vec<Migration>> {
-    let mut migrations = Vec::new();
-
-    let paths = std::fs::read_dir(&config.migrate_dir).with_context(|| {
-        format!(
-            "problem reading migration directory ({})",
-            &config.migrate_dir.display()
-        )
-    })?;
-
-    for path in paths {
-        let path = path?.path();
-        let migration = path_to_migration(&path)?;
-        migrations.push(migration);
-    }
-
-    Ok(migrations)
-}
-
-fn path_to_migration(path: &Path) -> Result<Migration> {
-    let filename = path
-        .file_name()
-        .ok_or_else(|| anyhow::anyhow!("invalid filename {}", path.to_string_lossy()))?
-        .to_str()
-        .with_context(|| format!("invalid unicode in filename {}", path.to_string_lossy()))?;
-    Ok(Migration {
-        path: String::from(path.to_str().unwrap()),
-        identifier: String::from(filename),
-    })
 }
