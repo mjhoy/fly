@@ -4,6 +4,7 @@ use command::Command;
 use fly::db::Db;
 use fly::planner::ApplicationState;
 use fly::{config::Config, planner::get_all_migration_state};
+use std::process::exit;
 use std::{io::Write, time::SystemTime};
 use tracing::{debug, error, info, Level};
 
@@ -37,20 +38,6 @@ fn main() -> Result<()> {
 
     let application_state = get_all_migration_state(&mut db, &config.migrate_dir)?;
 
-    debug!("migration state:");
-    debug!(
-        "{}",
-        if application_state.is_empty() {
-            "(no migrations defined or applied)".to_string()
-        } else {
-            application_state
-                .iter()
-                .map(|application| format!("{}", &application))
-                .collect::<Vec<_>>()
-                .join("\n")
-        }
-    );
-
     match command {
         Command::Up => {
             let mut any_migrations_run = false;
@@ -69,11 +56,32 @@ fn main() -> Result<()> {
                 info!("database is up to date");
             }
         }
-        Command::Down => {
-            let last_non_pending = application_state
-                .iter()
-                .rfind(|application| !application.is_pending());
-            match last_non_pending {
+        Command::Down {
+            recover,
+            ignore_changed,
+            name,
+        } => {
+            if recover && ignore_changed {
+                error!("cannot specify both --recover and --ignore-changed, aborting");
+                exit(1);
+            }
+            let migration = if let Some(name) = name {
+                match application_state
+                    .iter()
+                    .find(|application| application.name() == name)
+                {
+                    Some(s) => Some(s),
+                    None => {
+                        error!("couldn't find migration {}", name);
+                        exit(1);
+                    }
+                }
+            } else {
+                application_state
+                    .iter()
+                    .rfind(|application| !application.is_pending())
+            };
+            match migration {
                 Some(application) => match application {
                     ApplicationState::Applied {
                         definition,
@@ -83,8 +91,35 @@ fn main() -> Result<()> {
                         info!("reverting {}", definition.name);
                         db.rollback_migration(definition)?;
                     }
-                    _ => {
-                        error!("expected clean migration history, got {}", application)
+                    ApplicationState::Changed {
+                        definition,
+                        application,
+                    } => {
+                        let rollback = if recover {
+                            &application.migration
+                        } else if ignore_changed {
+                            definition
+                        } else {
+                            error!("{} has changed, aborting. Use the --recover flag to run the down sql stored in the database.", application.migration.name);
+                            exit(1)
+                        };
+                        debug!("{}", rollback.down_sql);
+                        info!("reverting {}", rollback.name);
+                        db.rollback_migration(rollback)?;
+                    }
+                    ApplicationState::Removed { application } => {
+                        if recover {
+                            debug!("{}", application.migration.down_sql);
+                            info!("reverting application {}", application.migration.name);
+                            db.rollback_migration(&application.migration)?;
+                        } else {
+                            error!("{} was removed, aborting. Use the --recover flag to run the down sql stored in the database.", application.migration.name);
+                            exit(1);
+                        }
+                    }
+                    ApplicationState::Pending { definition } => {
+                        error!("can't roll back a pending migration {}", definition.name);
+                        exit(1);
                     }
                 },
                 None => info!("no migrations to revert"),
@@ -92,15 +127,16 @@ fn main() -> Result<()> {
         }
         Command::Status => {
             for application in &application_state {
-                println!("{}", application);
+                info!("{}", application);
+                debug!("{:?}", application);
             }
         }
-        Command::New(new_args) => {
+        Command::New { name } => {
             let timestamp = SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .expect("time went backwards")
                 .as_secs();
-            let filename = format!("{}-{}.sql", timestamp, new_args.name);
+            let filename = format!("{}-{}.sql", timestamp, name);
             let path = config.migrate_dir.join(filename);
             let mut file = std::fs::File::create(&path)?;
             file.write_all(MIGRATION_TEMPLATE.as_bytes())?;

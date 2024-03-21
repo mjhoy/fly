@@ -40,6 +40,21 @@ impl ApplicationState {
     pub fn is_removed(&self) -> bool {
         matches!(self, ApplicationState::Removed { .. })
     }
+
+    pub fn name(&self) -> &str {
+        match self {
+            ApplicationState::Pending { definition } => &definition.name,
+            ApplicationState::Applied {
+                definition,
+                application: _,
+            } => &definition.name,
+            ApplicationState::Changed {
+                definition,
+                application: _,
+            } => &definition.name,
+            ApplicationState::Removed { application } => &application.migration.name,
+        }
+    }
 }
 
 impl Display for ApplicationState {
