@@ -7,17 +7,28 @@ pub enum Command {
     Up,
 
     /// Rolls back the last migration.
-    Down,
+    Down {
+        /// If the migration is changed or removed, attempt to roll back using the down sql
+        /// string stored in the database. Cannot be used with `--ignore-changed`.
+        #[clap(short, long, default_value_t = false)]
+        recover: bool,
+
+        /// If the migration is changed, run the down sql defined in the migration file.
+        /// Cannot be used with `--recover`.
+        #[clap(short, long, default_value_t = false)]
+        ignore_changed: bool,
+
+        /// The name of the migration to roll back. If not provided, the default is to select
+        /// the latest non-pending migration.
+        name: Option<String>,
+    },
 
     /// Prints the current status of the database.
     Status,
 
     /// Creates a new migration file.
-    New(NewArgs),
-}
-
-#[derive(clap::Args, Debug)]
-pub struct NewArgs {
-    /// The name to use for the migration file, e.g., "create-users"
-    pub name: String,
+    New {
+        /// The name to use for the migration file, e.g., "create-users"
+        name: String,
+    },
 }
