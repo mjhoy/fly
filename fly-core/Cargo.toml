@@ -1,6 +1,6 @@
 [package]
 name = "fly-migrate-core"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2021"
 description = "Core library for fly-migrate, a database migration tool."
 license = "MIT"
