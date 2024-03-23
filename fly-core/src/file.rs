@@ -19,7 +19,9 @@ pub fn list(migrate_dir: impl AsRef<Path>) -> Result<Vec<Migration>> {
 fn valid_migration_file_path(path: impl AsRef<Path>) -> bool {
     let path = path.as_ref();
     path.is_file()
-        && path.ends_with(".sql")
+        && path
+            .extension()
+            .map_or(false, |f| f.to_string_lossy() == "sql")
         && path
             .file_name()
             .map_or(false, |f| !f.to_string_lossy().starts_with("."))
