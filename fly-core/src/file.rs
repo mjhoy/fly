@@ -8,9 +8,23 @@ pub fn list(migrate_dir: impl AsRef<Path>) -> Result<Vec<Migration>> {
     let mut migrations = Vec::new();
     for path in paths {
         let path = path?.path();
-        migrations.push(parse_migration_from_file(path)?);
+        if valid_migration_file_path(&path) {
+            migrations.push(parse_migration_from_file(path)?);
+        }
     }
     Ok(migrations)
+}
+
+// Check that a path is a file, ends in .sql, and does not start with a dot.
+fn valid_migration_file_path(path: impl AsRef<Path>) -> bool {
+    let path = path.as_ref();
+    path.is_file()
+        && path
+            .extension()
+            .map_or(false, |f| f.to_string_lossy() == "sql")
+        && path
+            .file_name()
+            .map_or(false, |f| !f.to_string_lossy().starts_with("."))
 }
 
 fn parse_migration_from_file(path: impl AsRef<Path>) -> Result<Migration> {
