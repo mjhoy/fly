@@ -1,11 +1,12 @@
 [package]
 name = "fly-migrate-core"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 description = "Core library for fly-migrate, a database migration tool."
 license = "MIT"
 repository = "https://github.com/mjhoy/fly"
 keywords = ["database", "migration"]
+readme = "../README.md"
 
 [lib]
 name = "fly"
