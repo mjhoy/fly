@@ -328,7 +328,7 @@ dependencies = [
 
 [[package]]
 name = "fly-migrate"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -344,7 +344,7 @@ dependencies = [
 
 [[package]]
 name = "fly-migrate-core"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "postgres",
  "postgres-types",
