@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## [0.2.1] 2024-03-23
+
+### Fixed
+
+- Fixed the readme config in the new workspace setup.
+
+## [0.2.0] 2024-03-23
 
 ### Added
 
