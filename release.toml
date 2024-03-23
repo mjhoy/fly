@@ -1,2 +1,3 @@
-pre-release-commit-message = "Release {{crate_name}} version {{version}}"
-tag-message = "Release {{crate_name}} version {{version}}"
+pre-release-commit-message = "Release fly-migrate version {{version}}"
+tag-message = "Release fly-migrate version {{version}}"
+tag-prefix = ""
