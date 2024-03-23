@@ -9,6 +9,7 @@
   and how to un-apply an old or removed migration.
 - `fly down` has the ability to recover from changed or removed
   migrations with the `--recover` flag, along with other improvements.
+- `fly example-env` outputs an example `.env` file.
 - Integration tests and github CI.
 
 ### Changed
