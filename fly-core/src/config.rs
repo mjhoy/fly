@@ -9,34 +9,26 @@ use std::{
 pub struct Config {
     pub migrate_dir: PathBuf,
     pub connection_string: String,
-    pub debug: bool,
 }
 
 impl Config {
-    pub fn new(
-        migrate_dir: impl AsRef<Path>,
-        connection_string: impl AsRef<str>,
-        debug: bool,
-    ) -> Config {
+    pub fn new(migrate_dir: impl AsRef<Path>, connection_string: impl AsRef<str>) -> Config {
         let migrate_dir = migrate_dir.as_ref().to_path_buf();
         let connection_string = connection_string.as_ref().to_owned();
         Config {
             migrate_dir,
             connection_string,
-            debug,
         }
     }
 
     pub fn from_env() -> Result<Self> {
         let env_vars = env::vars().collect::<HashMap<String, String>>();
         let migrate_dir = get_env("MIGRATE_DIR", &env_vars)?.into();
-        let debug = env_vars.get("DEBUG").unwrap_or(&"false".to_owned()) == "true";
         let connection_string = connection_string_from_env(&env_vars)?;
 
         Ok(Config {
             migrate_dir,
             connection_string,
-            debug,
         })
     }
 }

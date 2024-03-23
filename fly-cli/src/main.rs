@@ -11,17 +11,32 @@ use tracing::{debug, error, info, Level};
 mod command;
 
 static MIGRATION_TEMPLATE: &str = "-- up\n\n-- down\n";
+static EXAMPLE_ENV: &str = "# fly config
+MIGRATE_DIR=migrations
+PG_HOST=127.0.0.1
+PG_USER=user
+PG_PORT=5432
+# Remove if no password is set
+PG_PASSWORD=1234
+PG_DB=db
+";
+
+fn startup() -> Result<(Db, Vec<ApplicationState>)> {
+    let config = Config::from_env()?;
+    let mut db = Db::connect(&config).context("couldn't connect to database")?;
+    db.create_migrations_table()
+        .context("failed creating migrations table")?;
+    let application_state = get_all_migration_state(&mut db, &config.migrate_dir)?;
+
+    Ok((db, application_state))
+}
 
 fn main() -> Result<()> {
     dotenv::dotenv().ok();
 
+    let debug = std::env::var("DEBUG").unwrap_or("false".to_string()) == "true";
     let command = Command::parse();
-    let config = Config::from_env()?;
-    let level = if config.debug {
-        Level::DEBUG
-    } else {
-        Level::INFO
-    };
+    let level = if debug { Level::DEBUG } else { Level::INFO };
 
     let subscriber = tracing_subscriber::FmtSubscriber::builder()
         .without_time()
@@ -32,14 +47,9 @@ fn main() -> Result<()> {
     tracing::subscriber::set_global_default(subscriber)
         .context("setting tracing subscriber failed")?;
 
-    let mut db = Db::connect(&config).context("couldn't connect to database")?;
-    db.create_migrations_table()
-        .context("failed creating migrations table")?;
-
-    let application_state = get_all_migration_state(&mut db, &config.migrate_dir)?;
-
     match command {
         Command::Up => {
+            let (mut db, application_state) = startup()?;
             let mut any_migrations_run = false;
             for application in &application_state {
                 match application {
@@ -61,6 +71,7 @@ fn main() -> Result<()> {
             ignore_changed,
             name,
         } => {
+            let (mut db, application_state) = startup()?;
             if recover && ignore_changed {
                 error!("cannot specify both --recover and --ignore-changed, aborting");
                 exit(1);
@@ -126,12 +137,14 @@ fn main() -> Result<()> {
             }
         }
         Command::Status => {
+            let (_, application_state) = startup()?;
             for application in &application_state {
                 info!("{}", application);
                 debug!("{:?}", application);
             }
         }
         Command::New { name } => {
+            let config = Config::from_env()?;
             let timestamp = SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .expect("time went backwards")
@@ -142,6 +155,7 @@ fn main() -> Result<()> {
             file.write_all(MIGRATION_TEMPLATE.as_bytes())?;
             info!("Created file {}", path.display());
         }
+        Command::ExampleEnv => println!("{}", EXAMPLE_ENV.trim()),
     }
 
     Ok(())

@@ -26,6 +26,13 @@ to look in a `.env` file.
 - `PG_PORT`
 - `PG_DB`
 
+You can use the `example-env` subcommand to output an example `.env`
+file to get started:
+
+```
+fly example-env >> .env
+```
+
 You can also directly set a `PG_CONNECTION_STRING` instead of the
 individual `PG_` variables.
 
@@ -35,6 +42,7 @@ individual `PG_` variables.
 - `down`: Rolls back the last migration.
 - `status`: Prints the current status of the database.
 - `new`: Creates a new migration file.
+- `example-env`: Outputs an example `.env` file.
 
 [fly-migrate]: https://crates.io/crates/fly-migrate
 

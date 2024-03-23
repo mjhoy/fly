@@ -31,4 +31,7 @@ pub enum Command {
         /// The name to use for the migration file, e.g., "create-users"
         name: String,
     },
+
+    /// Outputs the contents of an example .env file to use with fly.
+    ExampleEnv,
 }
